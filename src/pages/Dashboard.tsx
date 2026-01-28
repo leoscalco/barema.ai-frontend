@@ -8,7 +8,7 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="max-w-6xl">
+      <div className="w-full">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-slate-200 rounded w-1/3"></div>
           <div className="grid grid-cols-3 gap-6">
@@ -37,7 +37,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full">
       <div className="mb-8">
         <h1 className="section-title mb-2">Bem-vindo de volta, {user?.full_name?.split(' ')[0]}!</h1>
         <p className="text-slate-500">

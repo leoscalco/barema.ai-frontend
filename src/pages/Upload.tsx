@@ -174,7 +174,7 @@ export default function Upload() {
   }
 
   return (
-    <div className="max-w-6xl">
+    <div className="w-full">
       <h1 className="section-title mb-8">Upload de Certificados</h1>
 
       {/* Edict Selector */}

@@ -11,14 +11,41 @@ interface FieldConfig {
 }
 
 export default function Validation() {
-  const { certificates, refreshCertificates } = useUser()
+  const { refreshCertificates } = useUser()
   const [currentCertificateIndex, setCurrentCertificateIndex] = useState(0)
   const [fields, setFields] = useState<FieldConfig[]>([])
-
-  // Get pending certificates
-  const pendingCertificates = certificates.filter(
-    (c) => c.status === 'pending' || c.status === 'processing' || c.status === 'needs_review'
-  )
+  const [pendingCertificates, setPendingCertificates] = useState<any[]>([])
+  const [isLoadingCertificates, setIsLoadingCertificates] = useState(true)
+  const [documentConfidence, setDocumentConfidence] = useState<number>(0.0)
+  
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  
+  // Load certificates for validation (confidence < 0.7)
+  useEffect(() => {
+    const loadValidationCertificates = async () => {
+      setIsLoadingCertificates(true)
+      try {
+        const response = await endpoints.getCertificates({ 
+          user_id: '7a8cbc10-4f18-4b33-b6c5-6d966fcfe4a0',
+          validation: true 
+        })
+        const certs = (response.data || []).map((c: any) => ({
+          ...c,
+          id: c.id,
+          status: c.validation_status || 'pending',
+          extraction_confidence: c.extraction_confidence || 0.0,
+        }))
+        setPendingCertificates(certs)
+      } catch (error) {
+        console.error('Error loading validation certificates:', error)
+        setPendingCertificates([])
+      } finally {
+        setIsLoadingCertificates(false)
+      }
+    }
+    loadValidationCertificates()
+  }, [])
 
   const currentCert = pendingCertificates[currentCertificateIndex]
 
@@ -26,6 +53,8 @@ export default function Validation() {
     if (currentCert) {
       // Load certificate data for validation
       loadCertificateData(currentCert.id)
+      // Load preview URL
+      loadPreviewUrl(currentCert.id)
     } else {
       // Use mock data if no certificates
       setFields([
@@ -76,55 +105,74 @@ export default function Validation() {
     }
   }, [currentCert])
 
+  const loadPreviewUrl = async (certId: string) => {
+    setIsLoadingPreview(true)
+    try {
+      const response = await endpoints.getCertificatePreview(certId)
+      const url = response.data.preview_url
+      console.log('Preview URL loaded:', url)
+      console.log('Content type:', response.data.content_type)
+      setPreviewUrl(url)
+    } catch (error) {
+      console.error('Error loading preview URL:', error)
+      setPreviewUrl(null)
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
   const loadCertificateData = async (certId: string) => {
     try {
-      const response = await endpoints.getCertificates({ user_id: '7a8cbc10-4f18-4b33-b6c5-6d966fcfe4a0' })
-      const cert = (response.data || []).find((c: any) => c.id === certId)
+      const response = await endpoints.getCertificateForValidation(certId)
+      const cert = response.data
       
       if (cert) {
-        // Map certificate data to fields
+        // Set document-level confidence
+        setDocumentConfidence(cert.extraction_confidence || 0.0)
+        
+        // Map certificate data to fields (without individual confidence)
         const certFields: FieldConfig[] = [
           {
             label: 'Título do Certificado',
             value: cert.title || '',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0, // Not used per field anymore
             type: 'text',
           },
           {
             label: 'Instituição',
             value: cert.institution || '',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'text',
           },
           {
             label: 'Carga Horária (h)',
             value: cert.workload_hours || 0,
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'number',
           },
           {
             label: 'Categoria',
             value: cert.category || 'Cursos',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'select',
             options: ['Cursos', 'Monitoria', 'Eventos', 'Publicações'],
           },
           {
             label: 'Data Início',
             value: cert.start_date ? new Date(cert.start_date).toISOString().split('T')[0] : '',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'date',
           },
           {
             label: 'Data Fim',
             value: cert.end_date ? new Date(cert.end_date).toISOString().split('T')[0] : '',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'date',
           },
           {
             label: 'Data Emissão',
             value: cert.issue_date ? new Date(cert.issue_date).toISOString().split('T')[0] : '',
-            confidence: cert.extraction_confidence || 0.5,
+            confidence: 0,
             type: 'date',
           },
         ]
@@ -144,22 +192,32 @@ export default function Validation() {
   const getConfidenceBadge = (confidence: number) => {
     if (confidence >= 0.9) {
       return (
-        <span className="px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
+        <span className="px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-sm font-semibold">
           {Math.round(confidence * 100)}% confiança
         </span>
       )
-    } else if (confidence >= 0.8) {
+    } else if (confidence >= 0.7) {
       return (
-        <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold">
+        <span className="px-3 py-1.5 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold">
           {Math.round(confidence * 100)}% confiança
         </span>
       )
     } else {
       return (
-        <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold">
+        <span className="px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 text-sm font-semibold">
           {Math.round(confidence * 100)}% confiança
         </span>
       )
+    }
+  }
+  
+  const getConfidenceMessage = (confidence: number) => {
+    if (confidence >= 0.9) {
+      return "Alta confiança - Dados extraídos com precisão"
+    } else if (confidence >= 0.7) {
+      return "Confiança moderada - Revise os dados extraídos"
+    } else {
+      return "Baixa confiança - Verifique cuidadosamente todos os campos"
     }
   }
 
@@ -194,13 +252,25 @@ export default function Validation() {
     }
   }
 
+  if (isLoadingCertificates) {
+    return (
+      <div className="w-full">
+        <h1 className="section-title mb-8">Validação de Certificados</h1>
+        <div className="card p-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+          <p className="text-slate-500 text-lg">Carregando certificados...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (pendingCertificates.length === 0) {
     return (
-      <div className="max-w-7xl">
+      <div className="w-full">
         <h1 className="section-title mb-8">Validação de Certificados</h1>
         <div className="card p-12 text-center">
           <p className="text-slate-500 text-lg">
-            Nenhum certificado pendente de validação
+            Nenhum certificado pendente de validação (confidence &lt; 0.7)
           </p>
         </div>
       </div>
@@ -208,7 +278,7 @@ export default function Validation() {
   }
 
   return (
-    <div className="max-w-7xl">
+    <div className="w-full">
       <div className="flex items-center justify-between mb-8">
         <h1 className="section-title">Validação de Certificados</h1>
         <div className="text-sm text-slate-500">
@@ -216,39 +286,91 @@ export default function Validation() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6 h-[calc(100vh-16rem)]">
-        {/* Left: Document Viewer */}
+      <div className="grid grid-cols-[70%_30%] gap-6 h-[calc(100vh-16rem)]">
+        {/* Left: Document Viewer (70%) */}
         <div className="card p-6 flex flex-col">
           <div className="label mb-4">Documento Original</div>
-          <div className="flex-1 bg-slate-100 rounded-2xl flex items-center justify-center">
-            <div className="text-center text-slate-400">
-              <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="font-medium">{currentCert?.file_name || 'Visualização do PDF'}</p>
-            </div>
+          <div className="flex-1 bg-slate-100 rounded-2xl flex items-center justify-center overflow-hidden">
+            {isLoadingPreview ? (
+              <div className="text-center text-slate-400">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                <p className="font-medium">Carregando documento...</p>
+              </div>
+            ) : previewUrl ? (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title="Document Preview"
+              />
+            ) : (
+              <div className="text-center text-slate-400">
+                <svg className="w-16 h-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="font-medium">{currentCert?.file_name || 'Visualização do PDF'}</p>
+                <p className="text-sm mt-2">Documento não disponível</p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Right: Validation Form */}
         <div className="card p-6 flex flex-col overflow-y-auto">
-          <div className="label mb-4">Dados Extraídos pela IA</div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="label">Dados Extraídos pela IA</div>
+            {getConfidenceBadge(documentConfidence)}
+          </div>
+          
+          {/* Global confidence message */}
+          <div className={`mb-6 p-4 rounded-xl ${
+            documentConfidence >= 0.9 
+              ? 'bg-emerald-50 border border-emerald-200' 
+              : documentConfidence >= 0.7
+              ? 'bg-blue-50 border border-blue-200'
+              : 'bg-amber-50 border border-amber-200'
+          }`}>
+            <div className="flex items-start gap-3">
+              <div className={`text-xl ${
+                documentConfidence >= 0.9 
+                  ? 'text-emerald-600' 
+                  : documentConfidence >= 0.7
+                  ? 'text-blue-600'
+                  : 'text-amber-600'
+              }`}>
+                {documentConfidence < 0.7 ? '⚠️' : documentConfidence < 0.9 ? 'ℹ️' : '✓'}
+              </div>
+              <div className="flex-1">
+                <p className={`text-sm font-semibold ${
+                  documentConfidence >= 0.9 
+                    ? 'text-emerald-800' 
+                    : documentConfidence >= 0.7
+                    ? 'text-blue-800'
+                    : 'text-amber-800'
+                }`}>
+                  {getConfidenceMessage(documentConfidence)}
+                </p>
+                <p className={`text-xs mt-1 ${
+                  documentConfidence >= 0.9 
+                    ? 'text-emerald-600' 
+                    : documentConfidence >= 0.7
+                    ? 'text-blue-600'
+                    : 'text-amber-600'
+                }`}>
+                  Confiança geral da extração: {Math.round(documentConfidence * 100)}%
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="space-y-6">
             {fields.map((field, index) => {
-              const isLowConfidence = field.confidence < 0.8
-              
               return (
                 <div key={index}>
                   <label className="label">{field.label}</label>
                   <div className="relative">
                     {field.type === 'select' ? (
                       <select
-                        className={`input-field w-full ${
-                          isLowConfidence
-                            ? 'border-amber-400 border-2 focus:ring-amber-500 focus:border-amber-500'
-                            : ''
-                        }`}
+                        className="input-field w-full"
                         value={field.value as string}
                         onChange={(e) => updateField(index, e.target.value)}
                       >
@@ -261,11 +383,7 @@ export default function Validation() {
                     ) : (
                       <input
                         type={field.type || 'text'}
-                        className={`input-field w-full ${
-                          isLowConfidence
-                            ? 'border-amber-400 border-2 focus:ring-amber-500 focus:border-amber-500'
-                            : ''
-                        }`}
+                        className="input-field w-full"
                         value={field.value}
                         onChange={(e) =>
                           updateField(
@@ -274,14 +392,6 @@ export default function Validation() {
                           )
                         }
                       />
-                    )}
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {getConfidenceBadge(field.confidence)}
-                    </div>
-                    {isLowConfidence && (
-                      <div className="mt-2 text-xs text-amber-600 font-medium">
-                        ⚠️ Confiança baixa - Verifique este campo cuidadosamente
-                      </div>
                     )}
                   </div>
                 </div>

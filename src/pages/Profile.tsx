@@ -45,7 +45,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="w-full">
       <h1 className="section-title mb-8">Meu Perfil</h1>
 
       <div className="space-y-6">

@@ -44,6 +44,8 @@ export const endpoints = {
 
   // Certificates
   getCertificates: (params?: any) => api.get('/certificates/', { params }),
+  getCertificateForValidation: (id: string) => api.get(`/certificates/validate/${id}`),
+  getCertificatePreview: (id: string) => api.get(`/certificates/${id}/preview`),
   uploadCertificate: (formData: FormData) => {
     // Use axios directly without Content-Type header
     // Browser will automatically set Content-Type with boundary for FormData

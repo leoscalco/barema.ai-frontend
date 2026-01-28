@@ -40,7 +40,8 @@ export const endpoints = {
   // Auth
   register: (data: any) => api.post('/users/register', data),
   login: (data: any) => api.post('/users/login', data),
-  profile: () => api.get('/users/profile'),
+  profile: () => api.get('/users/me'),
+  updateUser: (data: any) => api.patch('/users/me', data),
 
   // Certificates
   getCertificates: (params?: any) => api.get('/certificates/', { params }),

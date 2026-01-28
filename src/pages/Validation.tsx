@@ -237,18 +237,47 @@ export default function Validation() {
     if (!currentCert) return
 
     try {
-      await endpoints.updateCertificate(currentCert.id, {
-        action: 'approve',
+      // Prepare updated data from fields
+      const updatedData: { [key: string]: any } = {}
+      fields.forEach(field => {
+        let key = ''
+        switch (field.label) {
+          case 'Título do Certificado': key = 'title'; break;
+          case 'Instituição': key = 'institution'; break;
+          case 'Carga Horária (h)': key = 'workload_hours'; break;
+          case 'Categoria': key = 'category'; break;
+          case 'Data Início': key = 'start_date'; break;
+          case 'Data Fim': key = 'end_date'; break;
+          case 'Data Emissão': key = 'issue_date'; break;
+          default: return;
+        }
+        updatedData[key] = field.value
       })
+
+      // Send updates and approve the certificate
+      await endpoints.updateCertificate(currentCert.id, {
+        action: 'edit',
+        updates: updatedData,
+      })
+      
+      // Refresh the certificate list
       await refreshCertificates()
       
-      if (currentCertificateIndex < pendingCertificates.length - 1) {
-        setCurrentCertificateIndex(currentCertificateIndex + 1)
-      } else if (pendingCertificates.length > 1) {
+      // Remove from pending list and move to next
+      const newPendingList = pendingCertificates.filter((_, idx) => idx !== currentCertificateIndex)
+      setPendingCertificates(newPendingList)
+      
+      // If there are more certificates, stay at same index (which now shows next cert)
+      // Otherwise, go back to beginning
+      if (currentCertificateIndex >= newPendingList.length && newPendingList.length > 0) {
         setCurrentCertificateIndex(0)
       }
+      
+      // Show success message
+      console.log('Certificate validated successfully!')
     } catch (error) {
       console.error('Error confirming certificate:', error)
+      alert('Erro ao salvar validação. Por favor, tente novamente.')
     }
   }
 
@@ -398,15 +427,12 @@ export default function Validation() {
               )
             })}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4 border-t border-slate-200">
-              <button onClick={handleConfirm} className="btn-primary flex-1">
-                ✓ Confirmar e Salvar
-              </button>
-              <button className="btn-secondary">
-                ⚠ Reportar Erro
-              </button>
-            </div>
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4 border-t border-slate-200">
+                    <button onClick={handleConfirm} className="btn-primary w-full">
+                      ✓ Confirmar e Salvar
+                    </button>
+                  </div>
           </div>
 
           {/* Queue Navigation */}

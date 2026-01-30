@@ -1,4 +1,5 @@
-export interface User {
+// User interface
+interface User {
   id: string
   email: string
   full_name: string
@@ -15,7 +16,8 @@ export interface User {
   created_at: string
 }
 
-export interface Certificate {
+// Certificate interface
+interface Certificate {
   id: string
   user_id: string
   title: string
@@ -29,22 +31,60 @@ export interface Certificate {
   ai_confidence?: number
   extraction_confidence?: number
   file_path: string
-  extracted_data?: any
+  extracted_data: any
   created_at: string
 }
 
-export interface Edict {
+// Conditional points for edict criteria
+interface ConditionalPoints {
+  trigger: string
+  additional_points: number
+  description?: string
+}
+
+// Edict criterion (single evaluation rule)
+interface EdictCriterion {
+  program?: string
+  department?: string
+  display_order: number
+  sub_order?: number
+  category_slug: string
+  description: string
+  unit_points: number
+  conditionals?: ConditionalPoints[]
+  item_limit?: number
+  max_points?: number
+  search_keywords?: string[]
+}
+
+// Edict (Edital) interface
+interface Edict {
   id: string
   code: string
   title: string
+  description?: string
   institution: string
-  state: string
-  deadline: string
-  barema_config: any
+  state?: string
+  city?: string
+  status: string
+  year?: number
+  programs?: string[]
+  departments?: string[]
+  barema_config: {
+    criteria: EdictCriterion[]
+    programs?: string[]
+    departments?: string[]
+    year?: number
+    footnotes?: string[]
+  }
+  settings: any
   created_at: string
+  updated_at?: string
+  published_at?: string
 }
 
-export interface EdictEvaluation {
+// Edict evaluation interface
+interface EdictEvaluation {
   edict_id: string
   total_score: number
   max_score: number
@@ -54,11 +94,23 @@ export interface EdictEvaluation {
   created_at: string
 }
 
-export interface RankingEntry {
+// Ranking entry interface
+interface RankingEntry {
   rank: number
   user_id: string
   full_name: string
   state: string
   score: number
   percentile: number
+}
+
+// Exports
+export type {
+  User,
+  Certificate,
+  ConditionalPoints,
+  EdictCriterion,
+  Edict,
+  EdictEvaluation,
+  RankingEntry
 }

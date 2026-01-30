@@ -1,230 +1,335 @@
-import React, { useState } from 'react'
-import { useUser } from '../contexts/UserContext'
-import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { endpoints } from '../services/api'
+import { 
+  PlusIcon, 
+  MagnifyingGlassIcon,
+  AcademicCapIcon,
+  BuildingLibraryIcon,
+  CalendarIcon,
+  MapPinIcon
+} from '@heroicons/react/24/outline'
+import type { Edict } from '../types'
+
+interface EdictCardProps {
+  edict: Edict & { num_criteria?: number }
+  onView: (id: string) => void
+}
+
+const EdictCard: React.FC<EdictCardProps> = ({ edict, onView }) => {
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-slate-900 mb-1 line-clamp-2">
+            {edict.title}
+          </h3>
+          <div className="flex items-center gap-2 text-sm text-slate-600 mt-2">
+            <BuildingLibraryIcon className="w-4 h-4" />
+            <span>{edict.institution}</span>
+          </div>
+          {edict.year && (
+            <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
+              <CalendarIcon className="w-4 h-4" />
+              <span>{edict.year}</span>
+            </div>
+          )}
+        </div>
+        <span className={`px-3 py-1 text-xs font-medium rounded-full shrink-0 ${
+          edict.status === 'published' 
+            ? 'bg-green-100 text-green-700' 
+            : edict.status === 'draft'
+            ? 'bg-slate-100 text-slate-700'
+            : 'bg-yellow-100 text-yellow-700'
+        }`}>
+          {edict.status === 'published' ? 'Publicado' : 
+           edict.status === 'draft' ? 'Rascunho' : 
+           edict.status}
+        </span>
+      </div>
+
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-slate-600">Critérios</span>
+          <span className="font-semibold text-slate-900">
+            {edict.num_criteria || edict.barema_config?.criteria?.length || 0}
+          </span>
+        </div>
+
+        {edict.programs && edict.programs.length > 0 && (
+          <div className="flex items-start gap-2 text-sm">
+            <AcademicCapIcon className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+            <div className="flex-1">
+              <span className="text-slate-600">Programas: </span>
+              <span className="text-slate-900">{edict.programs.slice(0, 2).join(', ')}</span>
+              {edict.programs.length > 2 && (
+                <span className="text-slate-500"> +{edict.programs.length - 2}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {edict.state && (
+          <div className="flex items-center gap-2 text-sm">
+            <MapPinIcon className="w-4 h-4 text-slate-400" />
+            <span className="text-slate-600">{edict.state}</span>
+          </div>
+        )}
+      </div>
+
+      <button 
+        onClick={() => onView(edict.id)}
+        className="w-full px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium"
+      >
+        Ver Detalhes
+      </button>
+    </div>
+  )
+}
 
 export default function Edicts() {
-  const { user } = useUser()
-  const [showUploadModal, setShowUploadModal] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const navigate = useNavigate()
+  const [myEdicts, setMyEdicts] = useState<Edict[]>([])
+  const [allEdicts, setAllEdicts] = useState<Edict[]>([])
+  const [isLoadingMy, setIsLoadingMy] = useState(true)
+  const [isLoadingAll, setIsLoadingAll] = useState(false)
+  
+  // Search filters
+  const [searchFilters, setSearchFilters] = useState({
+    institution: '',
+    year: '',
+    state: '',
+    program: '',
+    department: ''
+  })
+  const [isSearching, setIsSearching] = useState(false)
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file && file.type === 'application/pdf') {
-      setSelectedFile(file)
+  useEffect(() => {
+    loadMyEdicts()
+  }, [])
+
+  const loadMyEdicts = async () => {
+    setIsLoadingMy(true)
+    try {
+      const response = await endpoints.getMyEdicts()
+      setMyEdicts(response.data.edicts || [])
+    } catch (error) {
+      console.error('Error loading my edicts:', error)
+    } finally {
+      setIsLoadingMy(false)
     }
   }
 
-  const handleUpload = async () => {
-    if (!selectedFile) return
-    
-    // TODO: Implement actual upload to backend
-    console.log('Uploading edict:', selectedFile.name)
-    
-    // Simulate upload
-    setTimeout(() => {
-      alert(`Edital "${selectedFile.name}" enviado com sucesso!`)
-      setSelectedFile(null)
-      setShowUploadModal(false)
-    }, 1000)
+  const handleSearch = async () => {
+    setIsLoadingAll(true)
+    setIsSearching(true)
+    try {
+      const params: any = {}
+      if (searchFilters.institution) params.institution = searchFilters.institution
+      if (searchFilters.year) params.year = parseInt(searchFilters.year)
+      if (searchFilters.state) params.state = searchFilters.state
+      if (searchFilters.program) params.program = searchFilters.program
+      if (searchFilters.department) params.department = searchFilters.department
+
+      const response = await endpoints.searchEdicts(params)
+      setAllEdicts(response.data.edicts || [])
+    } catch (error) {
+      console.error('Error searching edicts:', error)
+    } finally {
+      setIsLoadingAll(false)
+    }
   }
 
-  const edicts = [
-    {
-      code: 'RESIDENCIA-2024-SP-CARDIOLOGIA',
-      title: 'Residência Médica em Cardiologia - 2024',
-      institution: 'Hospital das Clínicas - FMUSP',
-      state: 'SP',
-      score: 487,
-      maxScore: 1000,
-      position: 8,
-      deadline: '2024-03-15',
-    },
-    {
-      code: 'RESIDENCIA-2024-RJ-CIRURGIA',
-      title: 'Residência Médica em Cirurgia Geral - 2024',
-      institution: 'Hospital Universitário - UFRJ',
-      state: 'RJ',
-      score: 392,
-      maxScore: 850,
-      position: 15,
-      deadline: '2024-04-01',
-    },
-  ]
+  const handleClearSearch = () => {
+    setSearchFilters({
+      institution: '',
+      year: '',
+      state: '',
+      program: '',
+      department: ''
+    })
+    setAllEdicts([])
+    setIsSearching(false)
+  }
+
+  const handleViewEdict = (id: string) => {
+    navigate(`/edicts/${id}`)
+  }
 
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="section-title">Meus Editais</h1>
+    <div className="w-full py-8 px-4 sm:px-6 lg:px-8">
+      {/* Header */}
+      <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Editais</h1>
+          <p className="mt-2 text-slate-600">
+            Gerencie e analise editais de residência médica
+          </p>
+        </div>
         <button
-          onClick={() => setShowUploadModal(true)}
-          className="btn-primary flex items-center gap-2"
+          onClick={() => navigate('/edicts/upload')}
+          className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 font-medium"
         >
-          <ArrowUpTrayIcon className="w-5 h-5" />
-          Adicionar Novo Edital
+          <PlusIcon className="w-5 h-5" />
+          Novo Edital
         </button>
       </div>
 
-      {/* Search */}
-      <div className="card p-4 mb-8">
-        <input
-          type="search"
-          placeholder="Buscar editais por instituição, estado ou especialidade..."
-          className="input-field w-full"
-        />
-      </div>
+      {/* My Edicts Section */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Meus Editais</h2>
 
-      {/* Edicts List */}
-      <div className="space-y-6">
-        {edicts.map((edict) => {
-          const daysRemaining = Math.ceil(
-            (new Date(edict.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          )
+        {isLoadingMy && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          </div>
+        )}
 
-          return (
-            <div key={edict.code} className="card p-8">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
-                      {edict.state}
-                    </span>
-                    <span className="text-xs text-slate-400 font-mono">
-                      {edict.code}
-                    </span>
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-1">
-                    {edict.title}
-                  </h2>
-                  <p className="text-slate-500">{edict.institution}</p>
-                </div>
-                <button className="btn-secondary">
-                  Ver Detalhes
-                </button>
-              </div>
-
-              {/* Score Card */}
-              <div className="grid grid-cols-3 gap-6 mb-6">
-                <div className="text-center p-6 rounded-2xl bg-indigo-50">
-                  <div className="label mb-2">Sua Pontuação</div>
-                  <div className="text-4xl font-black text-indigo-600">
-                    {edict.score}
-                  </div>
-                  <div className="text-sm text-slate-500">
-                    de {edict.maxScore} pontos
-                  </div>
-                </div>
-
-                <div className="text-center p-6 rounded-2xl bg-emerald-50">
-                  <div className="label mb-2">Sua Posição</div>
-                  <div className="text-4xl font-black text-emerald-600">
-                    #{edict.position}
-                  </div>
-                  <div className="text-sm text-slate-500">
-                    no ranking regional
-                  </div>
-                </div>
-
-                <div className="text-center p-6 rounded-2xl bg-slate-50">
-                  <div className="label mb-2">Prazo</div>
-                  <div className="text-2xl font-black text-slate-900">
-                    {new Date(edict.deadline).toLocaleDateString('pt-BR')}
-                  </div>
-                  <div className="text-sm text-slate-500">
-                    {daysRemaining > 0 ? `${daysRemaining} dias restantes` : 'Prazo encerrado'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Gap Analysis */}
-              <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-bold text-slate-900 mb-4">Análise de Gaps</h3>
-                <div className="space-y-3">
-                  {[
-                    { category: 'Monitoria', missing: '10h', points: '+50' },
-                    { category: 'Publicações', missing: '2 artigos', points: '+100' },
-                  ].map((gap) => (
-                    <div
-                      key={gap.category}
-                      className="flex items-center justify-between p-4 rounded-xl border border-amber-200 bg-amber-50/50"
-                    >
-                      <div>
-                        <span className="font-bold text-slate-900">{gap.category}</span>
-                        <span className="text-slate-500 ml-2">
-                          Faltam {gap.missing} para pontuação máxima
-                        </span>
-                      </div>
-                      <span className="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-bold">
-                        {gap.points}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="card p-8 max-w-2xl w-full mx-4">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">
-              Adicionar Novo Edital
-            </h2>
-            <p className="text-slate-500 mb-6">
-              Faça upload do PDF do edital para análise automática
+        {!isLoadingMy && myEdicts.length === 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <AcademicCapIcon className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              Nenhum edital cadastrado
+            </h3>
+            <p className="text-slate-600 mb-6">
+              Faça upload do primeiro edital para começar a análise
             </p>
+            <button
+              onClick={() => navigate('/edicts/upload')}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors inline-flex items-center gap-2 font-medium"
+            >
+              <PlusIcon className="w-5 h-5" />
+              Enviar Edital
+            </button>
+          </div>
+        )}
 
-            <div className="border-2 border-dashed border-slate-300 rounded-2xl p-12 text-center mb-6">
-              {selectedFile ? (
-                <div>
-                  <div className="text-4xl mb-4">📄</div>
-                  <p className="font-bold text-slate-900 mb-2">{selectedFile.name}</p>
-                  <p className="text-sm text-slate-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <ArrowUpTrayIcon className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                  <p className="text-slate-500 mb-4">
-                    Arraste o PDF aqui ou clique para selecionar
-                  </p>
-                  <label className="btn-secondary cursor-pointer inline-block">
-                    Selecionar Arquivo
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      className="hidden"
-                      onChange={handleFileSelect}
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
+        {!isLoadingMy && myEdicts.length > 0 && (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {myEdicts.map((edict: any) => (
+              <EdictCard 
+                key={edict.id} 
+                edict={edict} 
+                onView={handleViewEdict}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-            <div className="flex gap-3">
+      {/* All Edicts Section with Search */}
+      <section>
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">Todos os Editais</h2>
+
+        {/* Search Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-4">
+            <input
+              type="text"
+              placeholder="Instituição"
+              value={searchFilters.institution}
+              onChange={(e) => setSearchFilters({ ...searchFilters, institution: e.target.value })}
+              className="px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="number"
+              placeholder="Ano (ex: 2024)"
+              value={searchFilters.year}
+              onChange={(e) => setSearchFilters({ ...searchFilters, year: e.target.value })}
+              className="px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              placeholder="Estado (UF)"
+              maxLength={2}
+              value={searchFilters.state}
+              onChange={(e) => setSearchFilters({ ...searchFilters, state: e.target.value.toUpperCase() })}
+              className="px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              placeholder="Programa"
+              value={searchFilters.program}
+              onChange={(e) => setSearchFilters({ ...searchFilters, program: e.target.value })}
+              className="px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="text"
+              placeholder="Departamento"
+              value={searchFilters.department}
+              onChange={(e) => setSearchFilters({ ...searchFilters, department: e.target.value })}
+              className="px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={handleSearch}
+              disabled={isLoadingAll}
+              className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 font-medium disabled:opacity-50"
+            >
+              <MagnifyingGlassIcon className="w-5 h-5" />
+              {isLoadingAll ? 'Buscando...' : 'Buscar Editais'}
+            </button>
+            {isSearching && (
               <button
-                onClick={() => {
-                  setShowUploadModal(false)
-                  setSelectedFile(null)
-                }}
-                className="btn-secondary flex-1"
+                onClick={handleClearSearch}
+                className="px-6 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium"
               >
-                Cancelar
+                Limpar
               </button>
-              <button
-                onClick={handleUpload}
-                disabled={!selectedFile}
-                className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Enviar Edital
-              </button>
-            </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Search Results */}
+        {isLoadingAll && (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+          </div>
+        )}
+
+        {!isLoadingAll && isSearching && allEdicts.length === 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <MagnifyingGlassIcon className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              Nenhum edital encontrado
+            </h3>
+            <p className="text-slate-600">
+              Tente ajustar os filtros de busca
+            </p>
+          </div>
+        )}
+
+        {!isLoadingAll && allEdicts.length > 0 && (
+          <>
+            <p className="text-sm text-slate-600 mb-4">
+              {allEdicts.length} edital{allEdicts.length !== 1 ? 'is' : ''} encontrado{allEdicts.length !== 1 ? 's' : ''}
+            </p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {allEdicts.map((edict: any) => (
+                <EdictCard 
+                  key={edict.id} 
+                  edict={edict} 
+                  onView={handleViewEdict}
+                />
+              ))}
+            </div>
+          </>
+        )}
+
+        {!isSearching && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+            <MagnifyingGlassIcon className="mx-auto h-16 w-16 text-slate-400 mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              Busque editais disponíveis
+            </h3>
+            <p className="text-slate-600">
+              Use os filtros acima para encontrar editais por instituição, ano, programa ou departamento
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   )
 }

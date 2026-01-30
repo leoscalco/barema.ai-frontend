@@ -11,7 +11,7 @@ interface FieldConfig {
 }
 
 export default function Validation() {
-  const { refreshCertificates } = useUser()
+  const { refreshCertificates, user } = useUser()
   const [currentCertificateIndex, setCurrentCertificateIndex] = useState(0)
   const [fields, setFields] = useState<FieldConfig[]>([])
   const [pendingCertificates, setPendingCertificates] = useState<any[]>([])
@@ -24,10 +24,12 @@ export default function Validation() {
   // Load certificates for validation (confidence < 0.7)
   useEffect(() => {
     const loadValidationCertificates = async () => {
+      if (!user) return
+      
       setIsLoadingCertificates(true)
       try {
         const response = await endpoints.getCertificates({ 
-          user_id: '7a8cbc10-4f18-4b33-b6c5-6d966fcfe4a0',
+          user_id: user.id,
           validation: true 
         })
         const certs = (response.data || []).map((c: any) => ({
@@ -44,8 +46,10 @@ export default function Validation() {
         setIsLoadingCertificates(false)
       }
     }
-    loadValidationCertificates()
-  }, [])
+    if (user) {
+      loadValidationCertificates()
+    }
+  }, [user])
 
   const currentCert = pendingCertificates[currentCertificateIndex]
 

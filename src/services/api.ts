@@ -48,9 +48,9 @@ export const endpoints = {
   getCertificateForValidation: (id: string) => api.get(`/certificates/validate/${id}`),
   getCertificatePreview: (id: string) => api.get(`/certificates/${id}/preview`),
   uploadCertificate: (formData: FormData) => {
-    // Use axios directly without Content-Type header
-    // Browser will automatically set Content-Type with boundary for FormData
-    return axios.post(`${API_BASE_URL}/certificates/upload/batch`, formData)
+    // Use the api instance to include auth token
+    // Content-Type header is removed by interceptor for FormData
+    return api.post('/certificates/upload/batch', formData)
   },
   updateCertificate: (id: string, data: any) => api.patch(`/certificates/validate/${id}`, data),
   deleteCertificate: (id: string) => api.delete(`/certificates/${id}`),
@@ -62,8 +62,11 @@ export const endpoints = {
 
   // Edicts
   getEdicts: (params?: any) => api.get('/edicts/', { params }),
+  getMyEdicts: (params?: any) => api.get('/edicts/my', { params }),
+  searchEdicts: (params?: any) => api.get('/edicts/search', { params }),
   getEdictById: (id: string) => api.get(`/edicts/${id}`),
   evaluateEdict: (id: string) => api.post(`/edicts/${id}/evaluate`),
+  uploadEdict: (formData: FormData) => api.post('/edicts/upload', formData),
 
   // Lattes
   exportLattes: () => api.get('/lattes/export', { responseType: 'blob' }),

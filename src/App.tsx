@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import Upload from './pages/Upload'
 import Validation from './pages/Validation'
 import Edicts from './pages/Edicts'
+import EdictUpload from './pages/EdictUpload'
+import EdictDetail from './pages/EdictDetail'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
 import KYC from './pages/KYC'
@@ -78,6 +80,8 @@ function App() {
             <Route path="upload" element={<Upload />} />
             <Route path="validation" element={<Validation />} />
             <Route path="edicts" element={<Edicts />} />
+            <Route path="edicts/upload" element={<EdictUpload />} />
+            <Route path="edicts/:id" element={<EdictDetail />} />
             <Route path="profile" element={<Profile />} />
           </Route>
 

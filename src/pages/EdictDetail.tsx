@@ -12,7 +12,9 @@ import {
   ChartBarIcon,
   InformationCircleIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  DocumentArrowDownIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 
 const CATEGORY_NAMES: Record<string, string> = {
@@ -138,7 +140,10 @@ export default function EdictDetail() {
   const navigate = useNavigate()
   const [edict, setEdict] = useState<Edict | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'info' | 'barema' | 'analysis'>('info')
+  const [activeTab, setActiveTab] = useState<'info' | 'barema' | 'analysis' | 'curriculum'>('info')
+  const [curriculumPreview, setCurriculumPreview] = useState<any>(null)
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
     if (id) {
@@ -157,6 +162,73 @@ export default function EdictDetail() {
       setIsLoading(false)
     }
   }
+
+  const loadCurriculumPreview = async () => {
+    if (!id) return
+    
+    setIsLoadingPreview(true)
+    try {
+      const response = await endpoints.previewCurriculum(id)
+      setCurriculumPreview(response.data)
+    } catch (error: any) {
+      console.error('Error loading curriculum preview:', error)
+      alert(error.response?.data?.detail || 'Erro ao carregar preview do currículo')
+    } finally {
+      setIsLoadingPreview(false)
+    }
+  }
+
+  const handleDownloadPDF = async () => {
+    if (!id) return
+    
+    setIsDownloading(true)
+    try {
+      const response = await endpoints.downloadCurriculumPDF(id)
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `curriculo_${edict?.code || 'edital'}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      console.error('Error downloading PDF:', error)
+      alert(error.response?.data?.detail || 'Erro ao baixar PDF')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  const handleDownloadXML = async () => {
+    if (!id) return
+    
+    setIsDownloading(true)
+    try {
+      const response = await endpoints.downloadCurriculumXML(id)
+      const blob = new Blob([response.data], { type: 'application/xml' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `lattes_${edict?.code || 'edital'}.xml`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      console.error('Error downloading XML:', error)
+      alert(error.response?.data?.detail || 'Erro ao baixar XML')
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'curriculum' && !curriculumPreview) {
+      loadCurriculumPreview()
+    }
+  }, [activeTab])
 
   const groupedCriteria = React.useMemo(() => {
     if (!edict?.barema_config?.criteria) return {}
@@ -217,17 +289,40 @@ export default function EdictDetail() {
             <h1 className="text-3xl font-bold text-slate-900 mb-2">{edict.title}</h1>
             <p className="text-slate-600 text-sm">Código: {edict.code}</p>
           </div>
-          <span className={`px-4 py-2 text-sm font-medium rounded-full shrink-0 ${
-            edict.status === 'published' 
-              ? 'bg-green-100 text-green-700' 
-              : edict.status === 'draft'
-              ? 'bg-slate-100 text-slate-700'
-              : 'bg-yellow-100 text-yellow-700'
-          }`}>
-            {edict.status === 'published' ? 'Publicado' : 
-             edict.status === 'draft' ? 'Rascunho' : 
-             edict.status}
-          </span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className={`px-4 py-2 text-sm font-medium rounded-full ${
+              edict.status === 'published' 
+                ? 'bg-green-100 text-green-700' 
+                : edict.status === 'draft'
+                ? 'bg-slate-100 text-slate-700'
+                : 'bg-yellow-100 text-yellow-700'
+            }`}>
+              {edict.status === 'published' ? 'Publicado' : 
+               edict.status === 'draft' ? 'Rascunho' : 
+               edict.status}
+            </span>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await endpoints.downloadEdict(edict.id)
+                  const url = window.URL.createObjectURL(new Blob([response.data]))
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.setAttribute('download', `${edict.code}.pdf`)
+                  document.body.appendChild(link)
+                  link.click()
+                  link.remove()
+                } catch (error) {
+                  console.error('Erro ao baixar edital:', error)
+                  alert('Falha ao baixar o arquivo do edital')
+                }
+              }}
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              <DocumentTextIcon className="w-4 h-4" />
+              Baixar Original
+            </button>
+          </div>
         </div>
 
         {edict.description && (
@@ -329,6 +424,17 @@ export default function EdictDetail() {
               Barema ({edict.barema_config?.criteria?.length || 0} critérios)
             </button>
             <button
+              onClick={() => setActiveTab('curriculum')}
+              className={`flex-1 px-4 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === 'curriculum'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <SparklesIcon className="w-5 h-5" />
+              Gerar Currículo
+            </button>
+            <button
               onClick={() => setActiveTab('analysis')}
               className={`flex-1 px-4 py-3 rounded-xl font-medium transition-colors ${
                 activeTab === 'analysis'
@@ -415,6 +521,166 @@ export default function EdictDetail() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Curriculum Tab */}
+          {activeTab === 'curriculum' && (
+            <div className="space-y-6">
+              {/* Header with Actions */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-900 mb-2 flex items-center gap-2">
+                    <SparklesIcon className="w-6 h-6 text-indigo-600" />
+                    Currículo Personalizado
+                  </h3>
+                  <p className="text-sm text-slate-600">
+                    Currículo adaptado automaticamente para este edital usando IA
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleDownloadPDF}
+                    disabled={isDownloading}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <DocumentArrowDownIcon className="w-5 h-5" />
+                    {isDownloading ? 'Gerando...' : 'Baixar PDF'}
+                  </button>
+                  <button
+                    onClick={handleDownloadXML}
+                    disabled={isDownloading}
+                    className="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <DocumentArrowDownIcon className="w-5 h-5" />
+                    {isDownloading ? 'Gerando...' : 'Baixar XML Lattes'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Loading State */}
+              {isLoadingPreview && (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">Analisando seus certificados e gerando preview...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Content */}
+              {!isLoadingPreview && curriculumPreview && (
+                <div className="space-y-6">
+                  {/* Summary Card */}
+                  <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-2xl p-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <p className="text-sm font-medium text-indigo-700 mb-1">Pontuação Estimada</p>
+                        <p className="text-3xl font-bold text-indigo-900">
+                          {curriculumPreview.summary?.total_score?.toFixed(2) || '0.00'} pts
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-sm font-medium text-indigo-700 mb-1">Estratégia de Organização</p>
+                        <p className="text-sm text-indigo-900">
+                          {curriculumPreview.summary?.strategy || 'Organização padrão'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Recommendations */}
+                    {curriculumPreview.summary?.recommendations && curriculumPreview.summary.recommendations.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-indigo-200">
+                        <p className="text-sm font-medium text-indigo-700 mb-2">💡 Recomendações:</p>
+                        <ul className="space-y-1">
+                          {curriculumPreview.summary.recommendations.map((rec: string, idx: number) => (
+                            <li key={idx} className="text-sm text-indigo-900">• {rec}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sections Preview */}
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-slate-900">Seções do Currículo (ordenadas por prioridade)</h4>
+                    
+                    {curriculumPreview.sections && curriculumPreview.sections.length > 0 ? (
+                      curriculumPreview.sections.map((section: any, idx: number) => (
+                        <div key={idx} className="bg-white border border-slate-200 rounded-xl p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                  section.priority <= 3
+                                    ? 'bg-red-100 text-red-700'
+                                    : section.priority <= 5
+                                    ? 'bg-yellow-100 text-yellow-700'
+                                    : 'bg-slate-100 text-slate-700'
+                                }`}>
+                                  Prioridade #{section.priority}
+                                </span>
+                                <h5 className="text-md font-semibold text-slate-900">{section.category}</h5>
+                              </div>
+                              {section.rationale && (
+                                <p className="text-sm text-slate-600 italic mb-2">{section.rationale}</p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-indigo-600">
+                                {section.estimated_score?.toFixed(1) || '0.0'}
+                              </p>
+                              <p className="text-xs text-slate-600">pontos estimados</p>
+                            </div>
+                          </div>
+
+                          {/* Items count */}
+                          <div className="flex items-center gap-4 text-sm text-slate-600">
+                            <span>{section.items?.length || 0} ite{section.items?.length !== 1 ? 'ns' : 'm'}</span>
+                            {section.max_items && (
+                              <span className="text-amber-600">• Máximo: {section.max_items} itens</span>
+                            )}
+                          </div>
+
+                          {/* Sample items (first 3) */}
+                          {section.items && section.items.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {section.items.slice(0, 3).map((item: any, itemIdx: number) => (
+                                <div key={itemIdx} className="text-sm bg-slate-50 rounded-lg p-3">
+                                  <p className="font-medium text-slate-900">{item.title || 'Sem título'}</p>
+                                  {item.institution && (
+                                    <p className="text-xs text-slate-600 mt-1">{item.institution}</p>
+                                  )}
+                                </div>
+                              ))}
+                              {section.items.length > 3 && (
+                                <p className="text-xs text-slate-500 text-center">
+                                  + {section.items.length - 3} item(s) adicional(is)
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 bg-slate-50 rounded-xl">
+                        <p className="text-slate-600">Nenhum certificado aprovado encontrado.</p>
+                        <p className="text-sm text-slate-500 mt-2">
+                          Valide seus certificados para gerar o currículo personalizado.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* No preview yet */}
+              {!isLoadingPreview && !curriculumPreview && (
+                <div className="text-center py-12 bg-slate-50 rounded-xl">
+                  <SparklesIcon className="mx-auto h-16 w-16 text-slate-300 mb-4" />
+                  <p className="text-slate-600">Clique em "Gerar Currículo" para começar</p>
+                </div>
+              )}
             </div>
           )}
 

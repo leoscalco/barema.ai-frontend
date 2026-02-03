@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react'
 import { useUser } from '../contexts/UserContext'
 import { endpoints } from '../services/api'
 import { ArrowUpTrayIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import BatchProgress from '../components/BatchProgress'
 
 interface FileWithPreview {
   id: string
@@ -17,6 +18,7 @@ export default function Upload() {
   const [files, setFiles] = useState<FileWithPreview[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [batchId, setBatchId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Mock edict barema config - will come from API
@@ -145,6 +147,11 @@ export default function Upload() {
 
       console.log('Upload response:', response.data)
 
+      // Save batch ID for progress tracking
+      if (response.data.batch_id) {
+        setBatchId(response.data.batch_id)
+      }
+
       // Update files with processing status
       setFiles((prev) =>
         prev.map((f, idx) => ({
@@ -176,6 +183,20 @@ export default function Upload() {
   return (
     <div className="w-full">
       <h1 className="section-title mb-8">Upload de Certificados</h1>
+
+      {/* Batch Progress */}
+      {batchId && (
+        <div className="mb-8">
+          <BatchProgress
+            batchId={batchId}
+            onComplete={() => {
+              refreshCertificates()
+              setFiles([])
+              setBatchId(null)
+            }}
+          />
+        </div>
+      )}
 
       {/* Edict Selector */}
       <div className="card p-6 mb-8">

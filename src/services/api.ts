@@ -65,9 +65,15 @@ export const endpoints = {
   getMyEdicts: (params?: any) => api.get('/edicts/my', { params }),
   searchEdicts: (params?: any) => api.get('/edicts/search', { params }),
   getEdictById: (id: string) => api.get(`/edicts/${id}`),
+  downloadEdict: (id: string) => api.get(`/edicts/${id}/download`, { responseType: 'blob' }),
   evaluateEdict: (id: string) => api.post(`/edicts/${id}/evaluate`),
   uploadEdict: (formData: FormData) => api.post('/edicts/upload', formData),
 
   // Lattes
   exportLattes: () => api.get('/lattes/export', { responseType: 'blob' }),
+
+  // Curriculum Generation
+  previewCurriculum: (edictId: string) => api.get(`/curriculum/preview/${edictId}`),
+  downloadCurriculumPDF: (edictId: string) => api.get(`/curriculum/generate/pdf/${edictId}`, { responseType: 'blob' }),
+  downloadCurriculumXML: (edictId: string) => api.get(`/curriculum/generate/xml/${edictId}`, { responseType: 'blob' }),
 }

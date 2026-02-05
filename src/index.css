@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Playfair+Display:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-slate-200 rounded-3xl shadow-sm;
+  }
+
+  .btn-primary {
+    @apply bg-indigo-600 text-white font-bold py-3 px-6 rounded-2xl hover:bg-indigo-700 transition-all duration-300;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-slate-700 font-medium py-3 px-6 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 rounded-xl px-4 py-3 text-slate-900 placeholder:text-slate-400 transition-all;
+  }
+
+  .label {
+    @apply text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 block;
+  }
+
+  .section-title {
+    @apply text-2xl font-black tracking-tight text-slate-900;
+  }
+}
+
+@layer utilities {
+  /* Shimmer Loading Effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+
+  .shimmer {
+    animation: shimmer 2s infinite;
+    background: linear-gradient(
+      to right,
+      #f1f5f9 0%,
+      #e2e8f0 20%,
+      #f1f5f9 40%,
+      #f1f5f9 100%
+    );
+    background-size: 1000px 100%;
+  }
+
+  /* Success Ring Animation */
+  @keyframes success-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgb(16 185 129 / 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgb(16 185 129 / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgb(16 185 129 / 0);
+    }
+  }
+
+  .ring-success-pulse {
+    animation: success-ring 0.6s ease-out;
+  }
+}
+
+/* Smooth Transitions */
+* {
+  @apply transition-colors duration-300;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-slate-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}

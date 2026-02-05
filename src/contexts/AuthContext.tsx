@@ -9,6 +9,7 @@ interface User {
   specialty?: string
   total_score?: number
   subscription_tier?: string
+  profile_photo?: string
 }
 
 interface AuthContextType {
@@ -17,6 +18,7 @@ interface AuthContextType {
   isLoading: boolean
   login: (token: string, userData: User) => void
   logout: () => void
+  updateUser: (userData: Partial<User>) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -50,6 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(userData)
   }
 
+  const updateUser = (userData: Partial<User>) => {
+    if (!user) return
+    
+    const updatedUser = { ...user, ...userData }
+    localStorage.setItem('user_data', JSON.stringify(updatedUser))
+    setUser(updatedUser)
+  }
+
   const logout = () => {
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user_data')
@@ -65,6 +75,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

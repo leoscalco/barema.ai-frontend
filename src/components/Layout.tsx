@@ -34,6 +34,11 @@ export default function Layout() {
   
   const userName = user?.full_name || 'Dr. Usuário'
   const userPlan = user?.subscription_tier || 'free'
+  
+  // Profile photo URL with cache busting
+  const profilePhotoUrl = user?.profile_photo 
+    ? `http://localhost:8000${user.profile_photo}?t=${Date.now()}` 
+    : null
 
   return (
     <div className="min-h-screen flex">
@@ -74,9 +79,18 @@ export default function Layout() {
         {/* User Info */}
         <div className="p-4 border-t border-slate-200">
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 mb-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold">
-              {userInitials}
-            </div>
+            {/* Profile Photo or Initials */}
+            {profilePhotoUrl ? (
+              <img
+                src={profilePhotoUrl}
+                alt="Foto de perfil"
+                className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200 shadow-sm"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                {userInitials}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-slate-900 truncate">
                 {userName}

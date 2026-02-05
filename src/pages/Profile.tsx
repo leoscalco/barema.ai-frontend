@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useUser } from '../contexts/UserContext'
+import { useAuth } from '../contexts/AuthContext'
 import { CheckIcon, XMarkIcon, ExclamationTriangleIcon, UserCircleIcon, CameraIcon } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
@@ -12,6 +13,7 @@ interface IdentificationCheck {
 
 export default function Profile() {
   const { user } = useUser()
+  const { updateUser } = useAuth()
   const [identificationCheck, setIdentificationCheck] = useState<IdentificationCheck | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -184,6 +186,10 @@ export default function Profile() {
       const photoUrl = `http://localhost:8000${response.data.photo_url}?t=${Date.now()}`
       console.log('🖼️ Setting photo URL:', photoUrl)
       setProfilePhoto(photoUrl)
+      
+      // Update user context immediately so it appears in sidebar
+      updateUser({ profile_photo: response.data.photo_url })
+      console.log('✅ User context updated with new photo')
       
       // Reload user data to confirm the update
       await loadUserData()

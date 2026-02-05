@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useUser } from '../contexts/UserContext'
-import { CheckIcon, XMarkIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { CheckIcon, XMarkIcon, ExclamationTriangleIcon, UserCircleIcon, CameraIcon } from '@heroicons/react/24/outline'
 import { api } from '../services/api'
 
 interface IdentificationCheck {
@@ -15,6 +15,8 @@ export default function Profile() {
   const [identificationCheck, setIdentificationCheck] = useState<IdentificationCheck | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [profilePhoto, setProfilePhoto] = useState<string | null>(null)
   
   // Form state for all identification fields
   const [formData, setFormData] = useState({
@@ -74,8 +76,19 @@ export default function Profile() {
         birth_city: userData.birth_city,
         birth_state: userData.birth_state,
         father_name: userData.father_name,
-        mother_name: userData.mother_name
+        mother_name: userData.mother_name,
+        profile_photo: userData.profile_photo
       })
+      
+      // Set profile photo with timestamp to avoid cache
+      if (userData.profile_photo) {
+        const photoUrl = `http://localhost:8000${userData.profile_photo}?t=${Date.now()}`
+        console.log('🖼️ Setting profile photo from user data:', photoUrl)
+        setProfilePhoto(photoUrl)
+      } else {
+        console.log('📷 No profile photo found in user data')
+        setProfilePhoto(null)
+      }
       
       // Populate form with user data
       const newFormData = {
@@ -131,6 +144,62 @@ export default function Profile() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    console.log('📸 Starting photo upload:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    })
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecione uma imagem (JPG ou PNG)')
+      return
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('A imagem deve ter no máximo 5MB')
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      console.log('📤 Uploading to /users/profile/photo...')
+      const response = await api.post('/users/profile/photo', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      console.log('✅ Photo uploaded successfully:', response.data)
+      
+      // Update profile photo URL with timestamp to avoid cache
+      const photoUrl = `http://localhost:8000${response.data.photo_url}?t=${Date.now()}`
+      console.log('🖼️ Setting photo URL:', photoUrl)
+      setProfilePhoto(photoUrl)
+      
+      // Reload user data to confirm the update
+      await loadUserData()
+      
+      alert('✅ Foto de perfil atualizada com sucesso!')
+    } catch (error: any) {
+      console.error('❌ Failed to upload photo:', error)
+      console.error('Error details:', error.response?.data)
+      alert(`Erro ao fazer upload da foto: ${error.response?.data?.detail || error.message}`)
+    } finally {
+      setUploadingPhoto(false)
+      // Clear the input so the same file can be uploaded again if needed
+      event.target.value = ''
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -177,6 +246,97 @@ export default function Profile() {
             {identificationCheck.completeness_percentage}% Completo
           </div>
         )}
+      </div>
+
+      {/* Profile Photo Section */}
+      <div className="card p-8 mb-6 bg-gradient-to-br from-slate-50 to-white border-2 border-slate-100">
+        <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+          <CameraIcon className="w-6 h-6 text-primary-600" />
+          Foto de Perfil
+        </h2>
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          {/* Photo Preview */}
+          <div className="relative group">
+            <div className="relative">
+              {profilePhoto ? (
+                <img
+                  src={profilePhoto}
+                  alt="Foto de perfil"
+                  className="w-40 h-40 rounded-2xl object-cover border-4 border-primary-200 shadow-xl"
+                />
+              ) : (
+                <div className="w-40 h-40 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center border-4 border-slate-300 shadow-lg">
+                  <UserCircleIcon className="w-24 h-24 text-slate-400" />
+                </div>
+              )}
+              
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 bg-black bg-opacity-50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <label
+                  htmlFor="photo-upload"
+                  className="cursor-pointer text-white text-center"
+                >
+                  <CameraIcon className="w-10 h-10 mx-auto mb-2" />
+                  <span className="text-sm font-medium">
+                    {profilePhoto ? 'Trocar foto' : 'Adicionar foto'}
+                  </span>
+                </label>
+              </div>
+            </div>
+            
+            {/* Upload Button */}
+            <label
+              htmlFor="photo-upload"
+              className="absolute -bottom-3 -right-3 bg-primary-600 hover:bg-primary-700 text-white rounded-full p-3 cursor-pointer shadow-xl transition-all hover:scale-110 border-4 border-white"
+            >
+              <CameraIcon className="w-6 h-6" />
+              <input
+                id="photo-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/jpg"
+                onChange={handlePhotoUpload}
+                className="hidden"
+                disabled={uploadingPhoto}
+              />
+            </label>
+            
+            {uploadingPhoto && (
+              <div className="absolute inset-0 bg-white bg-opacity-90 rounded-2xl flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-2"></div>
+                  <p className="text-sm text-primary-600 font-medium">Enviando...</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div className="flex-1">
+            <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+              <h3 className="font-bold text-slate-900 mb-3 text-lg">
+                {profilePhoto ? '✨ Foto configurada!' : '📸 Configure sua foto'}
+              </h3>
+              <p className="text-sm text-slate-600 mb-4 leading-relaxed">
+                Esta foto será utilizada no <strong>currículo gerado em PDF</strong> e na sua página de perfil. 
+                Uma foto profissional aumenta a credibilidade do seu currículo.
+              </p>
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span className="text-sm text-slate-700">Formatos: <strong>JPG, PNG</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold">✓</span>
+                  <span className="text-sm text-slate-700">Tamanho máximo: <strong>5MB</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 font-bold">💡</span>
+                  <span className="text-sm text-slate-700">Recomendado: <strong>foto 3x4 ou retrato profissional</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Completeness Alert */}

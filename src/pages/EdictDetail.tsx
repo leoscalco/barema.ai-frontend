@@ -575,23 +575,40 @@ export default function EdictDetail() {
                   <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-2xl p-6">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <p className="text-sm font-medium text-indigo-700 mb-1">Pontuação Estimada</p>
+                        <p className="text-sm font-medium text-indigo-700 mb-1">Pontuação Total Estimada</p>
                         <p className="text-3xl font-bold text-indigo-900">
-                          {curriculumPreview.summary?.total_score?.toFixed(2) || '0.00'} pts
+                          {(curriculumPreview.total_estimated_score || curriculumPreview.summary?.total_score || 0).toFixed(2)} pts
+                        </p>
+                        <p className="text-xs text-indigo-600 mt-1">
+                          Baseada em {curriculumPreview.sections?.length || 0} seção(ões)
                         </p>
                       </div>
                       <div className="md:col-span-2">
-                        <p className="text-sm font-medium text-indigo-700 mb-1">Estratégia de Organização</p>
+                        <p className="text-sm font-medium text-indigo-700 mb-1">📊 Distribuição de Pontos</p>
                         <p className="text-sm text-indigo-900">
-                          {curriculumPreview.summary?.strategy || 'Organização padrão'}
+                          {curriculumPreview.sections && curriculumPreview.sections.length > 0 ? (
+                            <>
+                              Maior pontuação: <span className="font-semibold">{curriculumPreview.sections[0]?.category}</span> ({curriculumPreview.sections[0]?.estimated_score?.toFixed(1)} pts)
+                            </>
+                          ) : (
+                            'Aguardando análise...'
+                          )}
                         </p>
                       </div>
                     </div>
 
+                    {/* Strategy */}
+                    {curriculumPreview.summary?.strategy && (
+                      <div className="mt-4 pt-4 border-t border-indigo-200">
+                        <p className="text-sm font-medium text-indigo-700 mb-1">🎯 Estratégia de Organização</p>
+                        <p className="text-sm text-indigo-900">{curriculumPreview.summary.strategy}</p>
+                      </div>
+                    )}
+
                     {/* Recommendations */}
                     {curriculumPreview.summary?.recommendations && curriculumPreview.summary.recommendations.length > 0 && (
                       <div className="mt-4 pt-4 border-t border-indigo-200">
-                        <p className="text-sm font-medium text-indigo-700 mb-2">💡 Recomendações:</p>
+                        <p className="text-sm font-medium text-indigo-700 mb-2">💡 Recomendações</p>
                         <ul className="space-y-1">
                           {curriculumPreview.summary.recommendations.map((rec: string, idx: number) => (
                             <li key={idx} className="text-sm text-indigo-900">• {rec}</li>
@@ -606,7 +623,9 @@ export default function EdictDetail() {
                     <h4 className="text-lg font-semibold text-slate-900">Seções do Currículo (ordenadas por prioridade)</h4>
                     
                     {curriculumPreview.sections && curriculumPreview.sections.length > 0 ? (
-                      curriculumPreview.sections.map((section: any, idx: number) => (
+                      [...curriculumPreview.sections]
+                        .sort((a: any, b: any) => (a.priority || 999) - (b.priority || 999))
+                        .map((section: any, idx: number) => (
                         <div key={idx} className="bg-white border border-slate-200 rounded-xl p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1">
@@ -647,9 +666,35 @@ export default function EdictDetail() {
                             <div className="mt-3 space-y-2">
                               {section.items.slice(0, 3).map((item: any, itemIdx: number) => (
                                 <div key={itemIdx} className="text-sm bg-slate-50 rounded-lg p-3">
-                                  <p className="font-medium text-slate-900">{item.title || 'Sem título'}</p>
-                                  {item.institution && (
-                                    <p className="text-xs text-slate-600 mt-1">{item.institution}</p>
+                                  {/* Show description if available (formatted text), otherwise fallback to title */}
+                                  {item.description ? (
+                                    <div className="text-slate-800 leading-relaxed whitespace-pre-line">
+                                      {item.description}
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <p className="font-medium text-slate-900">{item.title || 'Sem título'}</p>
+                                      {item.institution && (
+                                        <p className="text-xs text-slate-600 mt-1">{item.institution}</p>
+                                      )}
+                                      {item.period && (
+                                        <p className="text-xs text-slate-500 mt-1">Período: {item.period}</p>
+                                      )}
+                                      {item.workload && (
+                                        <p className="text-xs text-slate-500">Carga horária: {item.workload}</p>
+                                      )}
+                                    </>
+                                  )}
+                                  
+                                  {/* Show special conditions badges */}
+                                  {item.special_conditions && item.special_conditions.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                      {item.special_conditions.map((cond: string, condIdx: number) => (
+                                        <span key={condIdx} className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                                          {cond}
+                                        </span>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               ))}

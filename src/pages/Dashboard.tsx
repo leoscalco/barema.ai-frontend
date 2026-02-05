@@ -1,10 +1,16 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../contexts/UserContext'
+import { UserCircleIcon } from '@heroicons/react/24/outline'
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { user, certificates, loading } = useUser()
+  
+  // Profile photo URL with cache busting
+  const profilePhotoUrl = user?.profile_photo 
+    ? `http://localhost:8000${user.profile_photo}?t=${Date.now()}` 
+    : null
 
   if (loading) {
     return (
@@ -22,8 +28,11 @@ export default function Dashboard() {
   }
 
   const totalCertificates = certificates.length
+  // Count only certificates that need human validation (excluding auto_approved)
   const pendingValidation = certificates.filter(
-    (c) => c.status === 'pending' || c.status === 'processing'
+    (c) => (c.status === 'pending' || c.status === 'processing' || c.status === 'needs_review') && 
+           c.status !== 'auto_approved' &&
+           c.status !== 'approved'
   ).length
   const totalScore = user?.total_score || 487
 
@@ -38,11 +47,26 @@ export default function Dashboard() {
 
   return (
     <div className="w-full">
-      <div className="mb-8">
-        <h1 className="section-title mb-2">Bem-vindo de volta, {user?.full_name?.split(' ')[0]}!</h1>
-        <p className="text-slate-500">
-          Aqui está um resumo do seu progresso curricular
-        </p>
+      <div className="mb-8 flex items-center gap-6">
+        {/* Profile Photo */}
+        {profilePhotoUrl ? (
+          <img
+            src={profilePhotoUrl}
+            alt="Foto de perfil"
+            className="w-20 h-20 rounded-2xl object-cover border-4 border-primary-200 shadow-lg"
+          />
+        ) : (
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center border-4 border-slate-300 shadow-lg">
+            <UserCircleIcon className="w-12 h-12 text-slate-400" />
+          </div>
+        )}
+        
+        <div className="flex-1">
+          <h1 className="section-title mb-2">Bem-vindo de volta, {user?.full_name?.split(' ')[0]}!</h1>
+          <p className="text-slate-500">
+            Aqui está um resumo do seu progresso curricular
+          </p>
+        </div>
       </div>
 
       {/* Stats Grid */}
